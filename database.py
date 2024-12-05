@@ -98,7 +98,7 @@ def save_chat(username, chat_id, chat_data):
             now
         ) for msg in chat_data.get('messages', [])]
         
-        if messages_
+        if messages_:
             psycopg2.extras.execute_batch(cursor, '''
                 INSERT INTO messages (chat_id, role, content, timestamp)
                 VALUES (%s, %s, %s, %s)
