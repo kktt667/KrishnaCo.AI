@@ -130,14 +130,23 @@ def send_message():
 def save_chat_route():
     try:
         data = request.get_json()
-        username = session['username']
-        chat_id = data['chatId']
-        chat_data = data['chatData']
+        if not 
+            return jsonify({'error': 'No data provided'}), 400
+            
+        username = session.get('username')
+        if not username:
+            return jsonify({'error': 'User not authenticated'}), 401
+            
+        chat_id = data.get('chatId')
+        chat_data = data.get('chatData')
+        
+        if not chat_id or not chat_
+            return jsonify({'error': 'Missing chat ID or data'}), 400
 
         save_chat(username, chat_id, chat_data)
-        delete_old_chats(username)
         return jsonify({'success': True})
     except Exception as e:
+        print(f"Error in save_chat: {str(e)}")  # Add logging
         return jsonify({'error': str(e)}), 500
 
 @app.route('/get_chats', methods=['GET'])
@@ -148,6 +157,7 @@ def get_chats():
         chats = get_user_chats(username)
         return jsonify({'chats': chats})
     except Exception as e:
+        print(f"Error in get_chats: {str(e)}")  # Add logging
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health')
@@ -193,6 +203,13 @@ def delete_chat():
     except Exception as e:
         print(f"Error deleting chat: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.before_request
+def check_session():
+    if request.endpoint not in ['login', 'static'] and 'username' not in session:
+        if request.is_json:
+            return jsonify({'error': 'Not authenticated'}), 401
+        return redirect(url_for('login'))
 
 if __name__ == '__main__':
     app.run(debug=os.getenv('FLASK_ENV') == 'development')

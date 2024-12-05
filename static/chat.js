@@ -53,18 +53,9 @@ function setupEventListeners() {
 function formatMessage(content, isAI = false) {
     try {
         // Check if marked is available
-        if (typeof marked === 'undefined' || typeof marked.parse === 'undefined') {
+        if (typeof marked === 'undefined') {
             console.warn('Marked library not loaded, falling back to basic formatting');
-            return `
-                <div class="message ${isAI ? 'ai-message' : 'user-message'}">
-                    <div class="message-header">
-                        <span class="role-label">${isAI ? 'AI' : 'You'}</span>
-                    </div>
-                    <div class="message-content">
-                        <p>${content}</p>
-                    </div>
-                </div>
-            `;
+            return basicFormatting(content, isAI);
         }
 
         // Process markdown content
@@ -85,35 +76,39 @@ function formatMessage(content, isAI = false) {
         });
 
         // Convert markdown to HTML using marked.parse
-        formattedContent = marked.parse(formattedContent);
+        formattedContent = marked.parse ? marked.parse(formattedContent) : marked(formattedContent);
 
-        const messageClass = isAI ? 'ai-message' : 'user-message';
-        const roleLabel = isAI ? 'AI' : 'You';
-        
-        return `
-            <div class="message ${messageClass}">
-                <div class="message-header">
-                    <span class="role-label">${roleLabel}</span>
-                </div>
-                <div class="message-content markdown">
-                    ${formattedContent}
-                </div>
-            </div>
-        `;
+        return createMessageHTML(formattedContent, isAI);
     } catch (error) {
         console.error('Error formatting message:', error);
-        // Fallback to basic formatting
-        return `
-            <div class="message ${isAI ? 'ai-message' : 'user-message'}">
-                <div class="message-header">
-                    <span class="role-label">${isAI ? 'AI' : 'You'}</span>
-                </div>
-                <div class="message-content">
-                    <p>${content}</p>
-                </div>
-            </div>
-        `;
+        return basicFormatting(content, isAI);
     }
+}
+
+function basicFormatting(content, isAI) {
+    return `
+        <div class="message ${isAI ? 'ai-message' : 'user-message'}">
+            <div class="message-header">
+                <span class="role-label">${isAI ? 'AI' : 'You'}</span>
+            </div>
+            <div class="message-content">
+                <p>${content}</p>
+            </div>
+        </div>
+    `;
+}
+
+function createMessageHTML(content, isAI) {
+    return `
+        <div class="message ${isAI ? 'ai-message' : 'user-message'}">
+            <div class="message-header">
+                <span class="role-label">${isAI ? 'AI' : 'You'}</span>
+            </div>
+            <div class="message-content markdown">
+                ${content}
+            </div>
+        </div>
+    `;
 }
 
 
