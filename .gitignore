@@ -1,0 +1,11 @@
+# Ignore Python virtual environments
+venv/
+
+# Ignore Python bytecode
+__pycache__/
+
+# Ignore sensitive files
+.env
+credentials.py
+
+

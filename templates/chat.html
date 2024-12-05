@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Krishna Co. AI Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="sidebar">
+            <!-- Branding -->
+            <div class="branding">
+                <h1>Krishna Co.</h1>
+                <p>AI Assistant</p>
+            </div>
+
+            <!-- User Info -->
+            <div class="user-info">
+                <h2>Welcome, {{ name }}</h2>
+                <button id="logout-btn">Logout</button>
+            </div>
+            
+            <!-- Model Selector -->
+            <div class="model-selector">
+                <select id="model-select">
+                    {% for model in models %}
+                    <option value="{{ model }}">{{ model }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- New Chat Button -->
+            <button id="new-chat-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                New Chat
+            </button>
+
+            <!-- Chat List -->
+            <div id="chat-list"></div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="main-chat">
+            <!-- Messages Container -->
+            <div id="messages"></div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <textarea 
+                        id="user-input" 
+                        placeholder="Message Krishna Co. AI..." 
+                        rows="1"
+                        maxlength="4096"
+                    ></textarea>
+                    <button id="send-btn">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="input-footer">
+                    <p class="disclaimer">Krishna Co. AI can make mistakes. Consider checking important information.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='chat.js') }}"></script>
+</body>
+</html>
