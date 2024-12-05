@@ -4,7 +4,6 @@ import json
 import os
 import requests
 from dotenv import load_dotenv
-from config import get_credentials
 from database import init_db, save_chat, get_user_chats, delete_old_chats, get_db_connection
 import psycopg2
 from psycopg2 import sql
@@ -23,7 +22,88 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY')
 init_db()
 
 # Load credentials for user authentication
-USERS = get_credentials()
+USERS = {
+    "user01": {
+        "password": os.getenv("USER01_PASSWORD"),
+        "name": os.getenv("USER01_NAME"),
+    },
+    "user02": {
+        "password": os.getenv("USER02_PASSWORD"),
+        "name": os.getenv("USER02_NAME"),
+    },
+    "user03": {
+        "password": os.getenv("USER03_PASSWORD"),
+        "name": os.getenv("USER03_NAME"),
+    },
+    "user04": {
+        "password": os.getenv("USER04_PASSWORD"),
+        "name": os.getenv("USER04_NAME"),
+    },
+    "user05": {
+        "password": os.getenv("USER05_PASSWORD"),
+        "name": os.getenv("USER05_NAME"),
+    },
+    "user06": {
+        "password": os.getenv("USER06_PASSWORD"),
+        "name": os.getenv("USER06_NAME"),
+    },
+    "user07": {
+        "password": os.getenv("USER07_PASSWORD"),
+        "name": os.getenv("USER07_NAME"),
+    },
+    "user08": {
+        "password": os.getenv("USER08_PASSWORD"),
+        "name": os.getenv("USER08_NAME"),
+    },
+    "user09": {
+        "password": os.getenv("USER09_PASSWORD"),
+        "name": os.getenv("USER09_NAME"),
+    },
+    "user10": {
+        "password": os.getenv("USER10_PASSWORD"),
+        "name": os.getenv("USER10_NAME"),
+    },
+    "user11": {
+        "password": os.getenv("USER11_PASSWORD"),
+        "name": os.getenv("USER11_NAME"),
+    },
+    "user12": {
+        "password": os.getenv("USER12_PASSWORD"),
+        "name": os.getenv("USER12_NAME"),
+    },
+    "user13": {
+        "password": os.getenv("USER13_PASSWORD"),
+        "name": os.getenv("USER13_NAME"),
+    },
+    "user14": {
+        "password": os.getenv("USER14_PASSWORD"),
+        "name": os.getenv("USER14_NAME"),
+    },
+    "user15": {
+        "password": os.getenv("USER15_PASSWORD"),
+        "name": os.getenv("USER15_NAME"),
+    },
+    "user16": {
+        "password": os.getenv("USER16_PASSWORD"),
+        "name": os.getenv("USER16_NAME"),
+    },
+    "user17": {
+        "password": os.getenv("USER17_PASSWORD"),
+        "name": os.getenv("USER17_NAME"),
+    },
+    "user18": {
+        "password": os.getenv("USER18_PASSWORD"),
+        "name": os.getenv("USER18_NAME"),
+    },
+    "user19": {
+        "password": os.getenv("USER19_PASSWORD"),
+        "name": os.getenv("USER19_NAME"),
+    },
+    "user20": {
+        "password": os.getenv("USER20_PASSWORD"),
+        "name": os.getenv("USER20_NAME"),
+    },
+}
 
 # RedPill API configuration
 REDPILL_API_ENDPOINT = os.environ.get('REDPILL_API_ENDPOINT')
