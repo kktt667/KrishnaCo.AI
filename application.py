@@ -6,8 +6,15 @@ import requests
 from dotenv import load_dotenv
 from config import get_credentials
 from database import init_db, save_chat, get_user_chats, delete_old_chats, get_db_connection
+import psycopg2
+from psycopg2 import sql
+from os import getenv
 
-app = Flask(__name__, static_folder="static")
+def get_db_connection():
+    return psycopg2.connect(getenv("DATABASE_URL"))
+
+
+app = Flask(__name__, static_folder="static", template_folder="templates")
 load_dotenv()  # Ensure environment variables are loaded from a .env file
 
 app.secret_key = os.getenv('FLASK_SECRET_KEY')

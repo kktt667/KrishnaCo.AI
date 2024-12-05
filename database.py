@@ -1,16 +1,18 @@
-import sqlite3
+import psycopg2
+from psycopg2.extras import DictCursor
 from datetime import datetime
+import os
+
+# Get the database URL from the environment variable
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def init_db():
-    conn = sqlite3.connect('chats.db')
+    conn = psycopg2.connect(DATABASE_URL)
     c = conn.cursor()
 
-    # Enable foreign key constraints
-    c.execute('PRAGMA foreign_keys = ON')
-
     # Drop existing tables (if required for a clean slate)
-    c.execute('DROP TABLE IF EXISTS messages')
-    c.execute('DROP TABLE IF EXISTS chats')
+    c.execute('DROP TABLE IF EXISTS messages CASCADE')
+    c.execute('DROP TABLE IF EXISTS chats CASCADE')
 
     # Create chats table
     c.execute('''
@@ -28,7 +30,7 @@ def init_db():
     # Create messages table
     c.execute('''
         CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             chat_id TEXT NOT NULL,
             role TEXT NOT NULL,
             content TEXT NOT NULL,
@@ -38,18 +40,23 @@ def init_db():
     ''')
 
     conn.commit()
+    c.close()
     conn.close()
 
 def save_chat(username, chat_id, chat_data):
-    conn = sqlite3.connect('chats.db')
+    conn = psycopg2.connect(DATABASE_URL)
     c = conn.cursor()
 
     now = datetime.now().isoformat()
 
     # Insert or update chat
     c.execute('''
-        INSERT OR REPLACE INTO chats (chat_id, username, title, model, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO chats (chat_id, username, title, model, created_at, updated_at)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (chat_id) DO UPDATE SET
+            title = EXCLUDED.title,
+            model = EXCLUDED.model,
+            updated_at = EXCLUDED.updated_at
     ''', (
         chat_id,
         username,
@@ -60,38 +67,40 @@ def save_chat(username, chat_id, chat_data):
     ))
 
     # Delete existing messages for this chat to refresh them
-    c.execute('DELETE FROM messages WHERE chat_id = ?', (chat_id,))
+    c.execute('DELETE FROM messages WHERE chat_id = %s', (chat_id,))
 
     # Insert new messages
     for msg in chat_data.get('messages', []):
         c.execute('''
             INSERT INTO messages (chat_id, role, content, timestamp)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
         ''', (chat_id, msg['role'], msg['content'], now))
 
     conn.commit()
+    c.close()
     conn.close()
 
 def get_user_chats(username):
-    conn = sqlite3.connect('chats.db')
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
     c = conn.cursor()
 
     # Get all chats for the user
     c.execute('''
         SELECT chat_id, title, model, created_at
         FROM chats
-        WHERE username = ?
+        WHERE username = %s
         ORDER BY updated_at DESC
         LIMIT 20
     ''', (username,))
 
     chats = {}
-    for chat_id, title, model, created_at in c.fetchall():
+    for row in c.fetchall():
+        chat_id, title, model, created_at = row['chat_id'], row['title'], row['model'], row['created_at']
         # Get messages for each chat
         c.execute('''
             SELECT role, content, timestamp
             FROM messages
-            WHERE chat_id = ?
+            WHERE chat_id = %s
             ORDER BY timestamp
         ''', (chat_id,))
         
@@ -106,18 +115,19 @@ def get_user_chats(username):
             'created_at': created_at
         }
 
+    c.close()
     conn.close()
     return chats
 
 def delete_old_chats(username):
-    conn = sqlite3.connect('chats.db')
+    conn = psycopg2.connect(DATABASE_URL)
     c = conn.cursor()
 
     # Get chat IDs ordered by updated_at
     c.execute('''
         SELECT chat_id
         FROM chats
-        WHERE username = ?
+        WHERE username = %s
         ORDER BY updated_at DESC
     ''', (username,))
 
@@ -126,23 +136,16 @@ def delete_old_chats(username):
     # If user has more than 20 chats, delete the oldest ones
     if len(chat_ids) > 20:
         for chat_id in chat_ids[20:]:
-            c.execute('DELETE FROM messages WHERE chat_id = ?', (chat_id,))
-            c.execute('DELETE FROM chats WHERE chat_id = ?', (chat_id,))
+            c.execute('DELETE FROM messages WHERE chat_id = %s', (chat_id,))
+            c.execute('DELETE FROM chats WHERE chat_id = %s', (chat_id,))
 
     conn.commit()
+    c.close()
     conn.close()
 
 def get_db_connection():
     """
-    Establishes a connection to the SQLite database and returns the connection object.
+    Establishes a connection to the PostgreSQL database and returns the connection object.
     """
-    conn = sqlite3.connect('chats.db')
-    conn.row_factory = sqlite3.Row  # Optional: Makes rows dictionary-like for easier access
+    conn = psycopg2.connect(DATABASE_URL)
     return conn
-
-# Example Usage:
-# Uncomment the following lines to test the functions
-# init_db()
-# save_chat("user1", "chat1", {"title": "First Chat", "messages": [{"role": "user", "content": "Hi"}, {"role": "assistant", "content": "Hello"}]})
-# print(get_user_chats("user1"))
-# delete_old_chats("user1")
