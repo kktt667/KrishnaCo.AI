@@ -52,7 +52,7 @@ class ChatApp:
 
     def generate_response(self, model, messages):
         import requests
-        
+
         headers = {
             "Authorization": f"Bearer {REDPILL_API_KEY}",
             "Content-Type": "application/json"
@@ -79,12 +79,12 @@ class ChatApp:
             # Extract the response content from the API response
             response_content = response.json()["choices"][0]["message"]["content"]
 
-            # Format the response content with HTML
+            # Enhance the HTML formatting for a more appealing display
             formatted_response = f"""
-            <div style="background-color: #f3f4f6; padding: 10px; border-radius: 5px;">
-                <h2 style="color: #333; font-weight: bold;">Formatted Response:</h2>
-                <div style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
-                    <p>{response_content}</p>
+            <div style="background-color: #f3f4f6; border-radius: 10px; padding: 20px; margin: 20px 0;">
+                <h2 style="color: #333; font-weight: bold; margin-bottom: 10px; font-size: 1.3em;">AI Response:</h2>
+                <div style="border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
+                    {response_content}
                 </div>
             </div>
             """
