@@ -2,150 +2,153 @@ import psycopg2
 from psycopg2.extras import DictCursor
 from datetime import datetime
 import os
+from contextlib import contextmanager
+from psycopg2 import sql
+import urllib.parse
 
-# Get the database URL from the environment variable
+# Get the database URL and add SSL requirement
 DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL and "sslmode" not in DATABASE_URL:
+    DATABASE_URL += "?sslmode=require"
+
+@contextmanager
+def get_db_connection():
+    """Context manager for database connections"""
+    conn = None
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        yield conn
+    except psycopg2.Error as e:
+        print(f"Database connection error: {e}")
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
+
+@contextmanager
+def get_db_cursor(commit=False):
+    """Context manager for database cursors"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor(cursor_factory=DictCursor)
+        try:
+            yield cursor
+            if commit:
+                conn.commit()
+        finally:
+            cursor.close()
 
 def init_db():
-    conn = psycopg2.connect(DATABASE_URL)
-    c = conn.cursor()
+    """Initialize database tables"""
+    with get_db_cursor(commit=True) as cursor:
+        # Create chats table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chats (
+                chat_id TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
+                title TEXT,
+                model TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(chat_id, username)
+            )
+        ''')
 
-    # Drop existing tables (if required for a clean slate)
-    c.execute('DROP TABLE IF EXISTS messages CASCADE')
-    c.execute('DROP TABLE IF EXISTS chats CASCADE')
-
-    # Create chats table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS chats (
-            chat_id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            title TEXT,
-            model TEXT,
-            created_at TIMESTAMP,
-            updated_at TIMESTAMP,
-            UNIQUE(chat_id, username)
-        )
-    ''')
-
-    # Create messages table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS messages (
-            id SERIAL PRIMARY KEY,
-            chat_id TEXT NOT NULL,
-            role TEXT NOT NULL,
-            content TEXT NOT NULL,
-            timestamp TIMESTAMP,
-            FOREIGN KEY (chat_id) REFERENCES chats (chat_id) ON DELETE CASCADE
-        )
-    ''')
-
-    conn.commit()
-    c.close()
-    conn.close()
+        # Create messages table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                chat_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (chat_id) REFERENCES chats (chat_id) ON DELETE CASCADE
+            )
+        ''')
 
 def save_chat(username, chat_id, chat_data):
-    conn = psycopg2.connect(DATABASE_URL)
-    c = conn.cursor()
+    """Save or update a chat and its messages"""
+    with get_db_cursor(commit=True) as cursor:
+        now = datetime.now()
 
-    now = datetime.now().isoformat()
+        # Insert or update chat using UPSERT
+        cursor.execute('''
+            INSERT INTO chats (chat_id, username, title, model, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (chat_id, username) DO UPDATE SET
+                title = EXCLUDED.title,
+                model = EXCLUDED.model,
+                updated_at = EXCLUDED.updated_at
+        ''', (
+            chat_id,
+            username,
+            chat_data.get('title', 'New Chat'),
+            chat_data.get('model', 'gpt-3.5-turbo'),
+            chat_data.get('created_at', now),
+            now
+        ))
 
-    # Insert or update chat
-    c.execute('''
-        INSERT INTO chats (chat_id, username, title, model, created_at, updated_at)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        ON CONFLICT (chat_id) DO UPDATE SET
-            title = EXCLUDED.title,
-            model = EXCLUDED.model,
-            updated_at = EXCLUDED.updated_at
-    ''', (
-        chat_id,
-        username,
-        chat_data.get('title', 'New Chat'),
-        chat_data.get('model', 'gpt-3.5-turbo'),
-        chat_data.get('created_at', now),
-        now
-    ))
-
-    # Delete existing messages for this chat to refresh them
-    c.execute('DELETE FROM messages WHERE chat_id = %s', (chat_id,))
-
-    # Insert new messages
-    for msg in chat_data.get('messages', []):
-        c.execute('''
-            INSERT INTO messages (chat_id, role, content, timestamp)
-            VALUES (%s, %s, %s, %s)
-        ''', (chat_id, msg['role'], msg['content'], now))
-
-    conn.commit()
-    c.close()
-    conn.close()
+        # Efficiently update messages
+        cursor.execute('DELETE FROM messages WHERE chat_id = %s', (chat_id,))
+        
+        # Batch insert messages
+        messages_data = [(
+            chat_id,
+            msg['role'],
+            msg['content'],
+            now
+        ) for msg in chat_data.get('messages', [])]
+        
+        if messages_
+            psycopg2.extras.execute_batch(cursor, '''
+                INSERT INTO messages (chat_id, role, content, timestamp)
+                VALUES (%s, %s, %s, %s)
+            ''', messages_data)
 
 def get_user_chats(username):
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
-    c = conn.cursor()
-
-    # Get all chats for the user
-    c.execute('''
-        SELECT chat_id, title, model, created_at
-        FROM chats
-        WHERE username = %s
-        ORDER BY updated_at DESC
-        LIMIT 20
-    ''', (username,))
-
-    chats = {}
-    for row in c.fetchall():
-        chat_id, title, model, created_at = row['chat_id'], row['title'], row['model'], row['created_at']
-        # Get messages for each chat
-        c.execute('''
-            SELECT role, content, timestamp
-            FROM messages
-            WHERE chat_id = %s
-            ORDER BY timestamp
-        ''', (chat_id,))
+    """Get all chats and their messages for a user"""
+    with get_db_cursor() as cursor:
+        # Get all chats for the user with a single query
+        cursor.execute('''
+            SELECT c.chat_id, c.title, c.model, c.created_at,
+                   json_agg(
+                       json_build_object(
+                           'role', m.role,
+                           'content', m.content,
+                           'timestamp', m.timestamp
+                       ) ORDER BY m.timestamp
+                   ) as messages
+            FROM chats c
+            LEFT JOIN messages m ON c.chat_id = m.chat_id
+            WHERE c.username = %s
+            GROUP BY c.chat_id, c.title, c.model, c.created_at
+            ORDER BY c.updated_at DESC
+            LIMIT 20
+        ''', (username,))
         
-        messages = [{'role': role, 'content': content, 'timestamp': timestamp} 
-                    for role, content, timestamp in c.fetchall()]
+        results = cursor.fetchall()
         
-        chats[chat_id] = {
-            'id': chat_id,
-            'title': title,
-            'model': model,
-            'messages': messages,
-            'created_at': created_at
+        return {
+            row['chat_id']: {
+                'id': row['chat_id'],
+                'title': row['title'],
+                'model': row['model'],
+                'messages': row['messages'] if row['messages'][0] is not None else [],
+                'created_at': row['created_at']
+            }
+            for row in results
         }
 
-    c.close()
-    conn.close()
-    return chats
-
 def delete_old_chats(username):
-    conn = psycopg2.connect(DATABASE_URL)
-    c = conn.cursor()
-
-    # Get chat IDs ordered by updated_at
-    c.execute('''
-        SELECT chat_id
-        FROM chats
-        WHERE username = %s
-        ORDER BY updated_at DESC
-    ''', (username,))
-
-    chat_ids = [row[0] for row in c.fetchall()]
-
-    # If user has more than 20 chats, delete the oldest ones
-    if len(chat_ids) > 20:
-        for chat_id in chat_ids[20:]:
-            c.execute('DELETE FROM messages WHERE chat_id = %s', (chat_id,))
-            c.execute('DELETE FROM chats WHERE chat_id = %s', (chat_id,))
-
-    conn.commit()
-    c.close()
-    conn.close()
-
-def get_db_connection():
-    """
-    Establishes a connection to the PostgreSQL database and returns the connection object.
-    """
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+    """Delete oldest chats keeping only the most recent 20"""
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute('''
+            WITH old_chats AS (
+                SELECT chat_id
+                FROM chats
+                WHERE username = %s
+                ORDER BY updated_at DESC
+                OFFSET 20
+            )
+            DELETE FROM chats
+            WHERE chat_id IN (SELECT chat_id FROM old_chats)
+        ''', (username,))
