@@ -2,22 +2,42 @@ let currentModel = 'gpt-3.5-turbo';
 let currentChat = null;
 let chats = {};
 
+// Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    // Check if required libraries are loaded
+    if (typeof marked === 'undefined') {
+        console.error('marked.js is not loaded!');
+        // Load marked.js dynamically
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
+        script.onload = function() {
+            console.log('marked.js loaded successfully');
+            initializeApp();
+        };
+        document.head.appendChild(script);
+    } else {
+        initializeApp();
+    }
+});
+
+function initializeApp() {
     // Initialize marked.js configuration
-    marked.setOptions({
-        highlight: function(code, lang) {
-            if (lang && hljs.getLanguage(lang)) {
-                return hljs.highlight(code, { language: lang }).value;
-            }
-            return hljs.highlightAuto(code).value;
-        },
-        breaks: true,
-        gfm: true
-    });
+    if (typeof marked !== 'undefined') {
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+    }
 
     setupEventListeners();
     loadChats();
-});
+}
 
 function setupEventListeners() {
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
@@ -27,6 +47,73 @@ function setupEventListeners() {
     document.getElementById('model-select').addEventListener('change', handleModelChange);
     document.getElementById('user-input').addEventListener('input', autoResizeTextarea);
 }
+
+function formatMessage(content, isAI = false) {
+    try {
+        // Check if marked is available
+        if (typeof marked === 'undefined') {
+            console.warn('Marked library not loaded, falling back to basic formatting');
+            return `
+                <div class="message ${isAI ? 'ai-message' : 'user-message'}">
+                    <div class="message-header">
+                        <span class="role-label">${isAI ? 'AI' : 'You'}</span>
+                    </div>
+                    <div class="message-content">
+                        <p>${content}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Process markdown content
+        let formattedContent = content;
+
+        // Replace code blocks with syntax highlighting
+        formattedContent = formattedContent.replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, language, code) {
+            try {
+                const highlightedCode = language && hljs 
+                    ? hljs.highlight(code.trim(), { language: language }).value 
+                    : code.trim();
+                
+                return `<pre><code class="hljs ${language || ''}">${highlightedCode}</code></pre>`;
+            } catch (e) {
+                console.warn('Error highlighting code:', e);
+                return `<pre><code>${code.trim()}</code></pre>`;
+            }
+        });
+
+        // Convert markdown to HTML
+        formattedContent = marked(formattedContent);
+
+        const messageClass = isAI ? 'ai-message' : 'user-message';
+        const roleLabel = isAI ? 'AI' : 'You';
+        
+        return `
+            <div class="message ${messageClass}">
+                <div class="message-header">
+                    <span class="role-label">${roleLabel}</span>
+                </div>
+                <div class="message-content markdown">
+                    ${formattedContent}
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error formatting message:', error);
+        // Fallback to basic formatting
+        return `
+            <div class="message ${isAI ? 'ai-message' : 'user-message'}">
+                <div class="message-header">
+                    <span class="role-label">${isAI ? 'AI' : 'You'}</span>
+                </div>
+                <div class="message-content">
+                    <p>${content}</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
 
 async function loadChats() {
     try {
@@ -210,37 +297,6 @@ function displayMessages(messages) {
     });
     
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-function formatMessage(content, isAI = false) {
-    // Process markdown content
-    let formattedContent = content;
-
-    // Replace code blocks with syntax highlighting
-    formattedContent = formattedContent.replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, language, code) {
-        const highlightedCode = language 
-            ? hljs.highlight(code.trim(), { language: language }).value 
-            : hljs.highlightAuto(code.trim()).value;
-        
-        return `<pre><code class="hljs ${language || ''}">${highlightedCode}</code></pre>`;
-    });
-
-    // Convert markdown to HTML
-    formattedContent = marked(formattedContent);
-
-    const messageClass = isAI ? 'ai-message' : 'user-message';
-    const roleLabel = isAI ? 'AI' : 'You';
-    
-    return `
-        <div class="message ${messageClass}">
-            <div class="message-header">
-                <span class="role-label">${roleLabel}</span>
-            </div>
-            <div class="message-content markdown">
-                ${formattedContent}
-            </div>
-        </div>
-    `;
 }
 
 async function sendMessage() {
