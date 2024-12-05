@@ -130,7 +130,7 @@ def send_message():
 def save_chat_route():
     try:
         data = request.get_json()
-        if not 
+        if not :
             return jsonify({'error': 'No data provided'}), 400
             
         username = session.get('username')
