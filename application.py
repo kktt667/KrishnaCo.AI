@@ -75,11 +75,21 @@ class ChatApp:
                 timeout=30
             )
             response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
 
-        except requests.RequestException as e:
-            print(f"API request error: {e}")
-            return f"Error: Unable to generate response"
+            # Extract the response content from the API response
+            response_content = response.json()["choices"][0]["message"]["content"]
+
+            # Format the response content with HTML
+            formatted_response = f"""
+            <div style="background-color: #f3f4f6; padding: 10px; border-radius: 5px;">
+                <h2 style="color: #333; font-weight: bold;">Formatted Response:</h2>
+                <div style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
+                    <p>{response_content}</p>
+                </div>
+            </div>
+            """
+
+            return formatted_response
 
         except requests.RequestException as e:
             print(f"API request error: {e}")
