@@ -4,20 +4,22 @@ let chats = {};
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if required libraries are loaded
-    if (typeof marked === 'undefined') {
-        console.error('marked.js is not loaded!');
-        // Load marked.js dynamically
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js';
-        script.onload = function() {
-            console.log('marked.js loaded successfully');
-            initializeApp();
-        };
-        document.head.appendChild(script);
-    } else {
-        initializeApp();
+    // Initialize marked.js configuration
+    if (typeof marked !== 'undefined' && typeof marked.setOptions === 'function') {
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
     }
+
+    setupEventListeners();
+    loadChats();
 });
 
 function initializeApp() {
@@ -51,7 +53,7 @@ function setupEventListeners() {
 function formatMessage(content, isAI = false) {
     try {
         // Check if marked is available
-        if (typeof marked === 'undefined') {
+        if (typeof marked === 'undefined' || typeof marked.parse === 'undefined') {
             console.warn('Marked library not loaded, falling back to basic formatting');
             return `
                 <div class="message ${isAI ? 'ai-message' : 'user-message'}">
@@ -82,8 +84,8 @@ function formatMessage(content, isAI = false) {
             }
         });
 
-        // Convert markdown to HTML
-        formattedContent = marked(formattedContent);
+        // Convert markdown to HTML using marked.parse
+        formattedContent = marked.parse(formattedContent);
 
         const messageClass = isAI ? 'ai-message' : 'user-message';
         const roleLabel = isAI ? 'AI' : 'You';
