@@ -213,40 +213,20 @@ function displayMessages(messages) {
 }
 
 function formatMessage(content, isAI = false) {
-    // First, escape any HTML in the content to prevent XSS
-    content = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // Process markdown content
+    let formattedContent = content;
 
-    // Process code blocks before other markdown
-    content = content.replace(/```([\s\S]*?)```/g, function(match, code) {
-        return `<pre><code>${code.trim()}</code></pre>`;
+    // Replace code blocks with syntax highlighting
+    formattedContent = formattedContent.replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, language, code) {
+        const highlightedCode = language 
+            ? hljs.highlight(code.trim(), { language: language }).value 
+            : hljs.highlightAuto(code.trim()).value;
+        
+        return `<pre><code class="hljs ${language || ''}">${highlightedCode}</code></pre>`;
     });
 
-    // Process inline code
-    content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Process bold text
-    content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-    // Process bullet points and numbered lists
-    content = content.split('\n').map(line => {
-        // Numbered lists
-        if (/^\d+\.\s/.test(line)) {
-            return line.replace(/^\d+\.\s(.*)$/, '<li>$1</li>');
-        }
-        // Bullet points
-        if (/^[-*]\s/.test(line)) {
-            return line.replace(/^[-*]\s(.*)$/, '<li>$1</li>');
-        }
-        return line;
-    }).join('\n');
-
-    // Wrap lists in ul/ol tags
-    content = content.replace(/<li>.*?<\/li>/g, match => {
-        if (/^\d+\.\s/.test(match)) {
-            return `<ol>${match}</ol>`;
-        }
-        return `<ul>${match}</ul>`;
-    });
+    // Convert markdown to HTML
+    formattedContent = marked(formattedContent);
 
     const messageClass = isAI ? 'ai-message' : 'user-message';
     const roleLabel = isAI ? 'AI' : 'You';
@@ -257,7 +237,7 @@ function formatMessage(content, isAI = false) {
                 <span class="role-label">${roleLabel}</span>
             </div>
             <div class="message-content markdown">
-                ${content}
+                ${formattedContent}
             </div>
         </div>
     `;
