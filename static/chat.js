@@ -2,7 +2,19 @@ let currentModel = 'gpt-3.5-turbo';
 let currentChat = null;
 let chats = {};
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize marked.js configuration
+    marked.setOptions({
+        highlight: function(code, lang) {
+            if (lang && hljs.getLanguage(lang)) {
+                return hljs.highlight(code, { language: lang }).value;
+            }
+            return hljs.highlightAuto(code).value;
+        },
+        breaks: true,
+        gfm: true
+    });
+
     setupEventListeners();
     loadChats();
 });
@@ -13,7 +25,7 @@ function setupEventListeners() {
     document.getElementById('user-input').addEventListener('keypress', handleInputKeypress);
     document.getElementById('send-btn').addEventListener('click', sendMessage);
     document.getElementById('model-select').addEventListener('change', handleModelChange);
-    ocument.getElementById('user-input').addEventListener('input', autoResizeTextarea);
+    document.getElementById('user-input').addEventListener('input', autoResizeTextarea);
 }
 
 async function loadChats() {
@@ -174,18 +186,61 @@ function displayMessages(messages) {
     messagesContainer.innerHTML = '';
     
     messages.forEach(message => {
-        const messageElement = document.createElement('div');
-        messageElement.className = `message ${message.role}-message`;
-        messageElement.textContent = message.content;
-        messagesContainer.appendChild(messageElement);
+        const formattedMessage = formatMessage(message.content, message.role === 'assistant');
+        messagesContainer.insertAdjacentHTML('beforeend', formattedMessage);
+    });
+    
+    // Add copy buttons to code blocks
+    messagesContainer.querySelectorAll('pre').forEach(pre => {
+        const copyButton = document.createElement('button');
+        copyButton.className = 'copy-button';
+        copyButton.textContent = 'Copy';
+        copyButton.onclick = function() {
+            const code = pre.querySelector('code').textContent;
+            navigator.clipboard.writeText(code);
+            copyButton.textContent = 'Copied!';
+            setTimeout(() => copyButton.textContent = 'Copy', 2000);
+        };
+        pre.appendChild(copyButton);
+    });
+
+    // Initialize syntax highlighting for all code blocks
+    messagesContainer.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightBlock(block);
     });
     
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-function clearMessages() {
-    document.getElementById('messages').innerHTML = '';
-    document.getElementById('user-input').value = '';
+function formatMessage(content, isAI = false) {
+    // Process markdown content
+    let formattedContent = content;
+
+    // Replace code blocks with syntax highlighting
+    formattedContent = formattedContent.replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, language, code) {
+        const highlightedCode = language 
+            ? hljs.highlight(code.trim(), { language: language }).value 
+            : hljs.highlightAuto(code.trim()).value;
+        
+        return `<pre><code class="hljs ${language || ''}">${highlightedCode}</code></pre>`;
+    });
+
+    // Convert markdown to HTML
+    formattedContent = marked(formattedContent);
+
+    const messageClass = isAI ? 'ai-message' : 'user-message';
+    const roleLabel = isAI ? 'AI' : 'You';
+    
+    return `
+        <div class="message ${messageClass}">
+            <div class="message-header">
+                <span class="role-label">${roleLabel}</span>
+            </div>
+            <div class="message-content markdown">
+                ${formattedContent}
+            </div>
+        </div>
+    `;
 }
 
 async function sendMessage() {
@@ -196,6 +251,7 @@ async function sendMessage() {
     
     const chat = chats[currentChat];
     input.value = '';
+    autoResizeTextarea();
 
     // Add user message
     chat.messages.push({ role: 'user', content: message });
@@ -235,6 +291,12 @@ async function sendMessage() {
         alert('An error occurred while sending the message');
     }
 }
+
+function clearMessages() {
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('user-input').value = '';
+}
+
 function enableChatEditing(chatElement, chatId) {
     const currentTitle = chats[chatId].title;
     const inputElement = document.createElement('input');

@@ -158,14 +158,6 @@ body {
     padding: 1rem 0.5rem;
 }
 
-.message {
-    max-width: 48rem;
-    margin: 1.5rem auto;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.9rem;
-}
-
 .user-message {
     background-color: var(--primary-color);
 }
@@ -330,4 +322,86 @@ body {
 
 #send-btn:hover svg {
     transform: translateX(2px);
+}
+
+.message {
+    padding: 1.5rem;
+    margin: 0.5rem 0;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.message-header {
+    margin-bottom: 0.5rem;
+}
+
+.role-label {
+    font-weight: 500;
+    color: #666;
+}
+
+.user-message {
+    background-color: #f7f7f8;
+}
+
+.ai-message {
+    background-color: #ffffff;
+}
+
+.markdown pre {
+    background-color: #1e1e1e;
+    border-radius: 6px;
+    padding: 1rem;
+    position: relative;
+    margin: 1rem 0;
+    overflow-x: auto;
+}
+
+.markdown code {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.copy-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background-color: #4a5568;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.copy-button:hover {
+    opacity: 1;
+}
+
+.markdown h1, .markdown h2, .markdown h3 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+
+.markdown p {
+    margin-bottom: 1em;
+}
+
+.markdown ul, .markdown ol {
+    margin-left: 1.5em;
+    margin-bottom: 1em;
+}
+
+.markdown strong {
+    font-weight: 600;
+}
+
+.markdown blockquote {
+    border-left: 4px solid #e5e5e5;
+    padding-left: 1em;
+    margin: 1em 0;
+    color: #666;
 }
