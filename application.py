@@ -8,10 +8,19 @@ from database import (
 )
 from contextlib import contextmanager
 import functools
+from flask import jsonify, request
+from werkzeug.security import check_password_hash
+import os
+from supabase import create_client, Client
+from supabase import create_client
 
 # Initialize Flask app
 app = Flask(__name__, static_folder="static", template_folder="templates")
 load_dotenv()
+
+supabase_url = os.getenv('SUPABASE_URL')
+supabase_key = os.getenv('SUPABASE_SERVICE_KEY')  # Use service key for backend
+supabase = create_client(supabase_url, supabase_key)
 
 # Configuration
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
@@ -99,15 +108,60 @@ def index():
 def login():
     try:
         data = request.get_json()
-        chat_app = ChatApp()
-        if chat_app.authenticate(data['username'], data['password']):
-            session['authenticated'] = True
-            session['username'] = data['username']
-            session['name'] = USERS[data['username']]["name"]
-            return jsonify({'success': True})
-        return jsonify({'success': False, 'message': 'Invalid credentials'})
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            return jsonify({
+                'success': False,
+                'message': 'Username and password are required'
+            }), 400
+
+        # First get the user
+        user_response = supabase.table('auth.users') \
+            .select("*") \
+            .eq('username', username) \
+            .execute()
+
+        if len(user_response.data) == 0:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+
+        user = user_response.data[0]
+
+        # Verify password using the function
+        verify_response = supabase.rpc(
+            'verify_password',
+            {
+                'input_password': password,
+                'hashed_password': user['password']
+            }
+        ).execute()
+
+        if verify_response:
+            # Password is correct
+            return jsonify({
+                'success': True,
+                'user': {
+                    'username': user['username'],
+                    'name': user['name']
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid password'
+            }), 401
+
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f"Login error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'An error occurred during login'
+        }), 500
+
 
 @app.route('/logout', methods=['POST'])
 def logout():
@@ -130,7 +184,7 @@ def send_message():
 def save_chat_route():
     try:
         data = request.get_json()
-        if not :
+        if not data:
             return jsonify({'error': 'No data provided'}), 400
             
         username = session.get('username')
@@ -140,7 +194,7 @@ def save_chat_route():
         chat_id = data.get('chatId')
         chat_data = data.get('chatData')
         
-        if not chat_id or not chat_
+        if not chat_id or not chat_data:
             return jsonify({'error': 'Missing chat ID or data'}), 400
 
         save_chat(username, chat_id, chat_data)

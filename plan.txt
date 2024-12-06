@@ -1,0 +1,1 @@
+will restart with flask app. New vercel new project new supabase. Make sure everything is integrated for vercel and supabase from he start. 
