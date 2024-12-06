@@ -1,5 +1,5 @@
 # Ignore Python virtual environments
-venv/
+venv/localtester
 
 # Ignore Python bytecode
 __pycache__/
